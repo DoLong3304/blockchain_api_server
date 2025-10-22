@@ -290,6 +290,225 @@ src/
 
 If you continue to see issues, enable more logging around provider calls or print upstream response payloads in the error `details` field.
 
+## Postman test cases (Mục 5: Thực hành test API với Postman)
+
+Below is a quick guide and ready-to-import Postman Collection to test the main endpoints. It mirrors the API examples above and adds lightweight response assertions.
+
+### Quick start
+
+1. Install Postman
+   - https://www.postman.com/downloads/
+2. Create an Environment (recommended)
+   - Variables:
+     - base_url = http://localhost:3000
+     - network_id = ethereum
+     - address_eth = 0x742d35Cc6634C0532925a3b844Bc454e4438f44e
+     - address_btc = bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+     - erc20_usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+     - nft_contract = 0x...YourNFTContract
+     - nft_token_id = 1
+     - asset_id_btc = bitcoin
+     - asset_id_eth_caip = eip155:1/slip44:60
+3. Import the Collection JSON below into Postman
+4. Select the environment and send requests
+
+Tip: For EVM endpoints you must have a valid ALCHEMY_API_KEY configured in the server (.env). Postman does not need this key directly; the server uses it.
+
+### Collection (v2.1) — import JSON
+
+Copy the JSON into a file (e.g., Blockchain-API-Tests.postman_collection.json) and import it in Postman.
+
+```json
+{
+  "info": {
+    "name": "Blockchain API Server – Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.expect(json).to.have.property('success', true);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Balance – ETH (native)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/balance/{{address_eth}}/{{network_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.expect(json.success).to.eql(true);",
+              "pm.expect(json.data).to.have.keys(['balance','balanceFormatted','assetId','networkId','timestamp']);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Balance – ERC20 (USDC)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/balance/{{address_eth}}/{{network_id}}:{{erc20_usdc}}"
+      }
+    },
+    {
+      "name": "Balance – BTC",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/balance/{{address_btc}}/{{asset_id_btc}}"
+      }
+    },
+    {
+      "name": "Gas – EIP-1559",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/gas/{{network_id}}?type=eip1559"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.expect(json.success).to.eql(true);",
+              "pm.expect(json.data).to.have.property('type','eip1559');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Price – BTC (usd)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/price/{{asset_id_btc}}?currency=usd"
+      }
+    },
+    {
+      "name": "Price history – ETH (CAIP)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/price/{{asset_id_eth_caip}}/history?days=7&currency=usd"
+      }
+    },
+    {
+      "name": "History – ETH address",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/history/{{address_eth}}/{{network_id}}?page=1&limit=25"
+      }
+    },
+    {
+      "name": "NFT owners – by token",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/nft/owners/{{nft_contract}}/{{network_id}}?tokenId={{nft_token_id}}"
+      }
+    },
+    {
+      "name": "NFTs owned – by address",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/nft/owned/{{address_eth}}/{{network_id}}?contractAddress={{nft_contract}}"
+      }
+    },
+    {
+      "name": "Token metadata – native",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/token/metadata/{{network_id}}"
+      }
+    },
+    {
+      "name": "Balances – batch (POST)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/balances",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"address\": \"{{address_eth}}\",\n  \"assetIds\": [\n    \"{{network_id}}\",\n    \"{{network_id}}:{{erc20_usdc}}\",\n    \"bitcoin\"\n  ]\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.expect(json.success).to.eql(true);",
+              "pm.expect(json.data).to.be.an('object');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prices – batch (POST)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/prices",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"assetIds\": [\n    \"bitcoin\",\n    \"{{network_id}}\",\n    \"eip155:1/erc20:{{erc20_usdc}}\"\n  ],\n  \"currency\": \"usd\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Portfolio (POST)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/portfolio",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"address\": \"{{address_eth}}\",\n  \"assetIds\": [\n    \"{{network_id}}\",\n    \"eip155:1/erc20:{{erc20_usdc}}\"\n  ],\n  \"currency\": \"usd\"\n}"
+        }
+      }
+    }
+  ]
+}
+```
+
+### What to look for
+
+- Status code 200 and `success: true` for valid requests
+- For errors (e.g., invalid address), consistent envelope with `success: false` and an `error.code` like `INVALID_ADDRESS` or `MISSING_API_KEY`
+- Data shapes match those described in `src/data/types.ts` (e.g., `BalanceResponse`, `GasPriceResponse`)
+
+### Common pitfalls in Postman
+
+- Server not running or wrong `base_url` → start server and verify the health check request
+- Missing ALCHEMY_API_KEY → EVM endpoints will return `MISSING_API_KEY`
+- Using a Bitcoin network for NFTs or gas → expect `UNSUPPORTED_NETWORK` or `UNSUPPORTED_ASSET_TYPE`
+
 ## Development
 
 - Add networks
